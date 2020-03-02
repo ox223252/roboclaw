@@ -167,6 +167,13 @@ static int flush_io(int fd);
 /* Protocol related implementation */
 
 /* encode and decode primitives functions */
+static int encode_uint8(uint8_t *buffer, int bytes, uint8_t value)
+{
+	value=htobe8(value);
+	memcpy(buffer + bytes, &value, sizeof(value));
+	return sizeof(value);	
+}
+
 static int encode_uint16(uint8_t *buffer, int bytes, uint16_t value)
 {
 	value=htobe16(value);
@@ -266,6 +273,24 @@ static int encode_speed_accel_m1m2(uint8_t* buffer, uint8_t address, int32_t spe
 	return bytes;
 }
 
+static int encode_position_M1_M2(uint8_t* buffer, uint8_t address, int accel_m1, int speed_m1, int decel_m1, int position_m1,
+																	int accel_m2, int speed_m2, int decel_m2, int position_m2)
+{
+	uint8_t bytes=0;
+	buffer[bytes++]=address;
+	buffer[bytes++]=MIXEDSPEEDACCELDECCELPOS;
+	bytes += encode_uint32(buffer, bytes, accel_m1);
+	bytes += encode_uint32(buffer, bytes, speed_m1);
+	bytes += encode_uint32(buffer, bytes, decel_m1);
+	bytes += encode_uint32(buffer, bytes, position_m1);
+	bytes += encode_uint32(buffer, bytes, accel_m2);
+	bytes += encode_uint32(buffer, bytes, speed_m2);
+	bytes += encode_uint32(buffer, bytes, decel_m2);
+	bytes += encode_uint32(buffer, bytes, position_m2);
+	bytes += encode_uint32(buffer, bytes, position_m2);
+	bytes += encode_uint8 (buffer, bytes, 1);
+	bytes += encode_checksum(buffer, bytes);
+}
 //encode read commands functions
 //
 //roboclaw doesn't expect checksum sent on commands with replies
@@ -556,6 +581,13 @@ int roboclaw_speed_m1m2(struct roboclaw *rc, uint8_t address, int speed_m1, int 
 int roboclaw_speed_accel_m1m2(struct roboclaw *rc, uint8_t address, int speed_m1, int speed_m2, int accel)
 {	
 	int bytes=encode_speed_accel_m1m2(rc->buffer, address, speed_m1, speed_m2, accel);
+	return send_cmd_wait_answer(rc, bytes, ROBOCLAW_ACK_BYTES, 0);
+}
+
+int roboclaw_position_m1_m2(struct roboclaw *rc, uint8_t address, int accel_m1, int speed_m1, int decel_m1, int position_m1,
+																	int accel_m2, int speed_m2, int decel_m2, int position_m2)
+{
+	int bytes=encode_position_M1_M2(rc->buffer, address, accel_m1, speed_m1, decel_m1, position_m1, accel_m2, speed_m2, decel_m2, position_m2);
 	return send_cmd_wait_answer(rc, bytes, ROBOCLAW_ACK_BYTES, 0);
 }
 

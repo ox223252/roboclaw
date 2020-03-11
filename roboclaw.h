@@ -96,6 +96,12 @@ int roboclaw_main_battery_voltage(struct roboclaw *rc,uint8_t address, int16_t *
 int roboclaw_encoders(struct roboclaw *rc, uint8_t address, int32_t *enc_m1, int32_t *enc_m2);
 int roboclaw_position_m1_m2(struct roboclaw *rc, uint8_t address, int accel_m1, int speed_m1, int decel_m1, int position_m1,
 																	int accel_m2, int speed_m2, int decel_m2, int position_m2);
+int set_pid_constants_m1(struct roboclaw *rc, uint8_t address, int p, int i, int d, int qpps);
+int set_pid_constants_m2(struct roboclaw *rc, uint8_t address, int p, int i, int d, int qpps);
+int set_position_constants_m1(struct roboclaw *rc, uint8_t address, int p, int i, int d, int maxI, int deadZone, int minPos, int maxPos);
+
+int set_position_constants_m2(struct roboclaw *rc, uint8_t address, int p, int i, int d, int maxI, int deadZone, int minPos, int maxPos);
+
 #ifdef __cplusplus
 }
 #endif

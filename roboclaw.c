@@ -149,6 +149,10 @@ static uint16_t decode_crc16(uint8_t *buffer);
 static int encode_duty_m1m2(uint8_t *buffer, uint8_t address, int16_t duty1, int16_t duty2);
 static int encode_speed_m1m2(uint8_t *buffer, uint8_t address, int32_t speed1, int32_t speed2);
 static int encode_speed_accel_m1m2(uint8_t *buffer, uint8_t address, int32_t speed1, int32_t speed2, uint32_t accel);
+static int encode_pid_constant_m1(uint8_t* buffer, uint8_t address, int p, int i, int d, int qpps);
+static int encode_pid_constant_m2(uint8_t* buffer, uint8_t address, int p, int i, int d, int qpps);
+static int encode_pid_position_m1(uint8_t* buffer, uint8_t address, int p, int i, int d, int maxI, int deadZone, int minPos, int maxPos);
+static int encode_pid_position_m1(uint8_t* buffer, uint8_t address, int p, int i, int d, int maxI, int deadZone, int minPos, int maxPos);
 
 //Commands with reply
 static int encode_read_main_battery_voltage(uint8_t *buffer, uint8_t address, uint16_t *cmd_crc16);
@@ -169,7 +173,6 @@ static int flush_io(int fd);
 /* encode and decode primitives functions */
 static int encode_uint8(uint8_t *buffer, int bytes, uint8_t value)
 {
-	value=htobe8(value);
 	memcpy(buffer + bytes, &value, sizeof(value));
 	return sizeof(value);	
 }
@@ -287,10 +290,69 @@ static int encode_position_M1_M2(uint8_t* buffer, uint8_t address, int accel_m1,
 	bytes += encode_uint32(buffer, bytes, speed_m2);
 	bytes += encode_uint32(buffer, bytes, decel_m2);
 	bytes += encode_uint32(buffer, bytes, position_m2);
-	bytes += encode_uint32(buffer, bytes, position_m2);
 	bytes += encode_uint8 (buffer, bytes, 1);
 	bytes += encode_checksum(buffer, bytes);
+	return bytes;
 }
+
+static int encode_pid_constant_m1(uint8_t* buffer, uint8_t address, int p, int i, int d, int qpps)
+{
+	uint8_t bytes=0;
+	buffer[bytes++]=address;
+	buffer[bytes++]=SETM1PID;
+	bytes += encode_uint32(buffer, bytes, d);
+	bytes += encode_uint32(buffer, bytes, p);
+	bytes += encode_uint32(buffer, bytes, i);
+	bytes += encode_uint32(buffer, bytes, qpps);
+	bytes += encode_checksum(buffer, bytes);
+	return bytes;
+}
+
+static int encode_pid_constant_m2(uint8_t* buffer, uint8_t address, int p, int i, int d, int qpps)
+{
+	uint8_t bytes=0;
+	buffer[bytes++]=address;
+	buffer[bytes++]=SETM2PID;
+	bytes += encode_uint32(buffer, bytes, d);
+	bytes += encode_uint32(buffer, bytes, p);
+	bytes += encode_uint32(buffer, bytes, i);
+	bytes += encode_uint32(buffer, bytes, qpps);
+	bytes += encode_checksum(buffer, bytes);
+	return bytes;
+}
+
+static int encode_pid_position_m1(uint8_t* buffer, uint8_t address, int p, int i, int d, int maxI, int deadZone, int minPos, int maxPos)
+{
+	uint8_t bytes=0;
+	buffer[bytes++]=address;
+	buffer[bytes++]=SETM1POSPID;
+	bytes += encode_uint32(buffer, bytes, d);
+	bytes += encode_uint32(buffer, bytes, p);
+	bytes += encode_uint32(buffer, bytes, i);
+	bytes += encode_uint32(buffer, bytes, maxI);
+	bytes += encode_uint32(buffer, bytes, deadZone);
+	bytes += encode_uint32(buffer, bytes, minPos);
+	bytes += encode_uint32(buffer, bytes, maxPos);
+	bytes += encode_checksum(buffer, bytes);
+	return bytes;
+}
+
+static int encode_pid_position_m2(uint8_t* buffer, uint8_t address, int p, int i, int d, int maxI, int deadZone, int minPos, int maxPos)
+{
+	uint8_t bytes=0;
+	buffer[bytes++]=address;
+	buffer[bytes++]=SETM2POSPID;
+	bytes += encode_uint32(buffer, bytes, d);
+	bytes += encode_uint32(buffer, bytes, p);
+	bytes += encode_uint32(buffer, bytes, i);
+	bytes += encode_uint32(buffer, bytes, maxI);
+	bytes += encode_uint32(buffer, bytes, deadZone);
+	bytes += encode_uint32(buffer, bytes, minPos);
+	bytes += encode_uint32(buffer, bytes, maxPos);
+	bytes += encode_checksum(buffer, bytes);
+	return bytes;
+}
+
 //encode read commands functions
 //
 //roboclaw doesn't expect checksum sent on commands with replies
@@ -629,3 +691,26 @@ int roboclaw_encoders(struct roboclaw *rc, uint8_t address, int32_t *enc_m1, int
 	return ROBOCLAW_OK;
 }
 
+int set_pid_constants_m1(struct roboclaw *rc, uint8_t address, int p, int i, int d, int qpps)
+{
+	int bytes = encode_pid_constant_m1(rc->buffer, address, p, i, d, qpps);
+	return send_cmd_wait_answer(rc, bytes, ROBOCLAW_ACK_BYTES, 0);
+}
+
+int set_pid_constants_m2(struct roboclaw *rc, uint8_t address, int p, int i, int d, int qpps)
+{
+	int bytes = encode_pid_constant_m2(rc->buffer, address, p, i, d, qpps);
+	return send_cmd_wait_answer(rc, bytes, ROBOCLAW_ACK_BYTES, 0);
+}
+
+int set_position_constants_m1(struct roboclaw *rc, uint8_t address, int p, int i, int d, int maxI, int deadZone, int minPos, int maxPos)
+{
+	int bytes = encode_pid_position_m1(rc->buffer, address, p, i, d, maxI, deadZone, minPos, maxPos);
+	return send_cmd_wait_answer(rc, bytes, ROBOCLAW_ACK_BYTES, 0);
+}
+
+int set_position_constants_m2(struct roboclaw *rc, uint8_t address, int p, int i, int d, int maxI, int deadZone, int minPos, int maxPos)
+{
+	int bytes = encode_pid_position_m2(rc->buffer, address, p, i, d, maxI, deadZone, minPos, maxPos);
+	return send_cmd_wait_answer(rc, bytes, ROBOCLAW_ACK_BYTES, 0);
+}
